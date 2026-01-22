@@ -1,0 +1,62 @@
+/* App.css */
+
+/* Container for the entire app */
+.app-container {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  padding: 24px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f4ff, #d9e4ff);
+}
+
+/* Welcome/Grade selection card */
+.centered-card {
+  margin-top: 50px;
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Headings */
+h1 {
+  font-size: 36px;
+  color: #1a3c6c;
+  margin-bottom: 10px;
+}
+
+h2 {
+  margin-bottom: 20px;
+  color: #1a3c6c;
+}
+
+/* Grade dropdown */
+.grade-select {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  outline: none;
+}
+
+/* Change grade button */
+.change-grade-btn {
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: none;
+  background: #1a3c6c;
+  color: #fff;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.change-grade-btn:hover {
+  background: #0f2a4c;
+}
