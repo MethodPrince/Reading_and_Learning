@@ -14,7 +14,7 @@ type SubTopic = {
 };
 
 type ContentItem = {
-  _id?: string;
+  id?: number;
   grade: string;
   subject: string;
   topic: string;
@@ -24,6 +24,7 @@ type ContentItem = {
   definitions?: { word: string; meaning: string }[];
   term?: string;
   mainTopic?: string;
+  subTopic?: string; // For backward compatibility
 };
 
 export default function AdminPanel() {
@@ -41,7 +42,7 @@ export default function AdminPanel() {
     description: "",
     term: "Term 1"
   });
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
@@ -204,6 +205,8 @@ export default function AdminPanel() {
       questions: questions
     };
 
+    console.log("Submitting payload:", payload);
+
     const url = editingId
       ? `http://localhost:4000/api/admin/content/${editingId}`
       : "http://localhost:4000/api/admin/content";
@@ -216,13 +219,19 @@ export default function AdminPanel() {
         body: JSON.stringify(payload)
       });
 
+      console.log("Submit response:", res.status);
+
       if (res.ok) {
         resetForm();
         await loadContent();
-        alert(editingId ? "Content updated!" : "Content added!");
+        alert(editingId ? "Content updated successfully!" : "Content added successfully!");
+      } else {
+        const errorText = await res.text();
+        alert(`Error: ${res.status} - ${errorText}`);
       }
     } catch (error) {
-      alert("Error saving content");
+      console.error("Submit error:", error);
+      alert("Error saving content. Please check your connection.");
     }
   };
 
@@ -243,6 +252,8 @@ export default function AdminPanel() {
   };
 
   const editContent = (item: ContentItem) => {
+    console.log("Editing item:", item);
+    
     setForm({
       grade: item.grade,
       subject: item.subject,
@@ -264,22 +275,47 @@ export default function AdminPanel() {
     
     setQuestions(item.questions || [{ type: "mcq", question: "", options: ["", "", "", ""], answer: "" }]);
     setDefinitions(item.definitions || []);
-    setEditingId(item._id || null);
+    setEditingId(item.id || null);
     setCurrentStep(1);
     setErrors([]);
   };
 
-  const deleteContent = async (id: string) => {
-    if (!confirm("Delete this content?")) return;
+  const deleteContent = async (id: number) => {
+    if (!id) {
+      alert("Error: Invalid content ID");
+      return;
+    }
+    
+    if (!confirm("Are you sure you want to delete this content? This action cannot be undone.")) return;
+
+    console.log("Attempting to delete content with ID:", id);
 
     try {
-      await fetch(`http://localhost:4000/api/admin/content/${id}`, {
-        method: "DELETE"
+      const res = await fetch(`http://localhost:4000/api/admin/content/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json"
+        }
       });
-      await loadContent();
-      alert("Deleted!");
+
+      console.log("Delete response status:", res.status);
+
+      if (res.ok) {
+        // Remove the deleted item from state immediately for better UX
+        setContent(prevContent => prevContent.filter(item => item.id !== id));
+        alert("Content deleted successfully!");
+      } else {
+        const errorData = await res.json().catch(() => ({ message: "Unknown error" }));
+        console.error("Delete failed:", errorData);
+        alert(`Failed to delete content: ${errorData.message || "Server error"}`);
+        // Reload content to sync with server
+        await loadContent();
+      }
     } catch (error) {
-      alert("Error deleting");
+      console.error("Delete error:", error);
+      alert("Network error deleting content. Please check your connection.");
+      // Reload content to sync with server
+      await loadContent();
     }
   };
 
@@ -342,19 +378,70 @@ export default function AdminPanel() {
         return (
           <div className="shortanswer-input">
             <label>Correct Answer *</label>
-            <textarea
+            <input
+              type="text"
               placeholder="Enter the correct answer that students should type"
               value={q.answer}
               onChange={e => updateQuestion(qIndex, "answer", e.target.value)}
-              rows={3}
-              className={`form-textarea ${errors.some(e => e.includes(`Question ${qIndex + 1}: Provide the correct answer`)) ? 'error' : ''}`}
+              className={`form-input ${errors.some(e => e.includes(`Question ${qIndex + 1}: Provide the correct answer`)) ? 'error' : ''}`}
             />
+            <p className="input-hint">
+              Students will see an empty text box where they can type their answer.
+            </p>
           </div>
         );
 
       default:
         return null;
     }
+  };
+
+  const renderStudentPreview = () => {
+    if (questions.length === 0) return null;
+    
+    return (
+      <div className="student-preview">
+        <h4>📝 How questions will appear to students:</h4>
+        {questions.map((q, qi) => (
+          <div key={qi} className="student-question-preview">
+            <div className="preview-header">
+              <span>Question {qi + 1}: {q.type}</span>
+            </div>
+            <p className="preview-question"><strong>Q:</strong> {q.question}</p>
+            
+            {q.type === "mcq" && (
+              <div className="preview-mcq">
+                {q.options.map((option, oi) => (
+                  <div key={oi} className="preview-option">
+                    <input type="radio" name={`preview-${qi}`} id={`preview-${qi}-${oi}`} disabled />
+                    <label htmlFor={`preview-${qi}-${oi}`}>{option}</label>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {q.type === "truefalse" && (
+              <div className="preview-truefalse">
+                <button className="preview-tf-btn" disabled>True</button>
+                <button className="preview-tf-btn" disabled>False</button>
+              </div>
+            )}
+            
+            {q.type === "shortanswer" && (
+              <div className="preview-shortanswer">
+                <textarea 
+                  placeholder="Students will type their answer here..." 
+                  rows={3} 
+                  disabled
+                  defaultValue=""
+                />
+                <p className="preview-hint">(Students type their answer here)</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -580,16 +667,18 @@ export default function AdminPanel() {
               <div key={qi} className="question-item">
                 <div className="question-header">
                   <h4>Question {qi + 1}</h4>
-                  <button 
-                    type="button" 
-                    className="remove-btn"
-                    onClick={() => {
-                      const newQuestions = questions.filter((_, i) => i !== qi);
-                      setQuestions(newQuestions);
-                    }}
-                  >
-                    Remove Question
-                  </button>
+                  {questions.length > 1 && (
+                    <button 
+                      type="button" 
+                      className="remove-btn"
+                      onClick={() => {
+                        const newQuestions = questions.filter((_, i) => i !== qi);
+                        setQuestions(newQuestions);
+                      }}
+                    >
+                      Remove Question
+                    </button>
+                  )}
                 </div>
 
                 <div className="question-type-selector">
@@ -643,12 +732,19 @@ export default function AdminPanel() {
             + Add Another Question
           </button>
 
+          {/* Student Preview Section */}
+          {questions.length > 0 && (
+            <div className="student-preview-section">
+              {renderStudentPreview()}
+            </div>
+          )}
+
           <div className="step-buttons">
             <button className="back-btn" onClick={() => setCurrentStep(2)}>
               ← Back to Definitions
             </button>
             <button className="save-btn" onClick={submit}>
-              ✅ Save Content
+              {editingId ? "✅ Update Content" : "✅ Save Content"}
             </button>
           </div>
         </div>
@@ -665,7 +761,7 @@ export default function AdminPanel() {
               : [{ name: item.subTopic || "No subtopic", description: "" }];
               
             return (
-              <div key={item._id || i} className="content-card">
+              <div key={item.id || i} className="content-card">
                 <div className="card-header">
                   <span className="grade-badge">{item.grade}</span>
                   <span className="subject-badge">{item.subject}</span>
@@ -689,7 +785,16 @@ export default function AdminPanel() {
                 
                 <div className="card-actions">
                   <button onClick={() => editContent(item)}>Edit</button>
-                  <button onClick={() => deleteContent(item._id!)}>Delete</button>
+                  <button onClick={() => {
+                    console.log("Delete clicked for:", item.id);
+                    if (item.id) {
+                      deleteContent(item.id);
+                    } else {
+                      alert("Error: No ID found for this content");
+                    }
+                  }}>
+                    Delete
+                  </button>
                 </div>
               </div>
             );
