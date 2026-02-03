@@ -1,99 +1,115 @@
-import { useState } from 'react';
-import ReadingEngine from './assets/components/ReadingEngine';
-import AdminPanel from './assets/components/AdminPanel';
-import './App.css';
+import { useState, useEffect } from "react";
+import StudentDashboard from "./assets/components/StudentDashboard";
+import StudentRegister from "./assets/components/StudentRegister";
+import StudentLogin from "./assets/components/StudentLogin";
+import AdminPanel from "./assets/components/AdminPanel";
+import "./App.css";
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'student' | 'admin';
+  grade: string;
+  maxAttempts: number;
+  attemptsUsed: number;
+};
 
 export default function App() {
-  const [mode, setMode] = useState<'student' | 'admin' | 'reading'>('student');
-  const [selectedGrade, setSelectedGrade] = useState<string>('');
+  const [mode, setMode] = useState<"register" | "login" | "dashboard" | "loading">("loading");
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
-  // Student mode - Grade selection
-  if (mode === 'student') {
+  useEffect(() => {
+    // Check if user is already logged in
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
+    
+    if (storedUser && storedToken) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setToken(storedToken);
+        setMode('dashboard');
+      } catch (error) {
+        console.error("Error parsing stored user data:", error);
+        // Clear invalid data
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        setMode('login');
+      }
+    } else {
+      setMode('login');
+    }
+  }, []);
+
+  const handleLogin = (userData: User, authToken: string) => {
+    setUser(userData);
+    setToken(authToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', authToken);
+    setMode('dashboard');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setMode('login');
+  };
+
+  // Show loading state
+  if (mode === "loading") {
     return (
-      <div className="page">
-        <div className="hero-section">
-          <h1>🎓 School Learning System</h1>
-          <p className="subtitle">Interactive Learning Platform for Grades 4-12</p>
-          
-          <div className="features">
-            <div className="feature">
-              <div className="feature-icon">📚</div>
-              <h3>Study Notes</h3>
-              <p>Access comprehensive learning materials</p>
-            </div>
-            <div className="feature">
-              <div className="feature-icon">❓</div>
-              <h3>Practice Quizzes</h3>
-              <p>Test your knowledge with interactive questions</p>
-            </div>
-            <div className="feature">
-              <div className="feature-icon">📊</div>
-              <h3>Track Progress</h3>
-              <p>Monitor your learning journey</p>
-            </div>
-          </div>
-
-          <div className="grade-selection">
-            <h2>Select Your Grade to Begin</h2>
-            <select 
-              onChange={e => setSelectedGrade(e.target.value)} 
-              value={selectedGrade}
-            >
-              <option value="" disabled>Choose Grade</option>
-              {Array.from({ length: 9 }, (_, i) => (
-                <option key={i} value={`Grade ${i + 4}`}>
-                  Grade {i + 4}
-                </option>
-              ))}
-            </select>
-            <p className="hint">Grades 4 through 12 available</p>
-            
-            {selectedGrade && (
-              <button 
-                className="start-learning-btn"
-                onClick={() => setMode('reading')}
-              >
-                Start Learning in {selectedGrade}
-              </button>
-            )}
-          </div>
-
-          <div className="admin-link">
-            <p>Are you a teacher or administrator?</p>
-            <button onClick={() => setMode('admin')}>
-              Go to Admin Panel
-            </button>
-          </div>
+      <div className="app-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Admin mode
-  if (mode === 'admin') {
+  // Registration Page
+  if (mode === "register") {
     return (
-      <div className="admin-mode">
-        <div className="admin-header-bar">
-          <h1>🏫 School Learning System - Admin Panel</h1>
-          <button onClick={() => setMode('student')} className="back-to-student-btn">
-            ← Back to Student View
-          </button>
-        </div>
-        <AdminPanel />
+      <div className="app-container">
+        <StudentRegister onRegister={() => setMode("login")} />
       </div>
     );
   }
 
-  // Reading/Learning mode
+  // Login Page
+  if (mode === "login") {
+    return (
+      <div className="app-container">
+        <StudentLogin onLogin={handleLogin} onRegisterClick={() => setMode("register")} />
+      </div>
+    );
+  }
+
+  // Dashboard Views - Add null check
+  if (mode === "dashboard" && user) {
+    // Admin Dashboard
+    if (user.role === "admin") {
+      return <AdminPanel user={user} onLogout={handleLogout} />;
+    }
+    
+    // Student Dashboard
+    return <StudentDashboard user={user} onLogout={handleLogout} />;
+  }
+
+  // Fallback - if somehow we're in dashboard mode without a user
   return (
-    <div className="reading-mode">
-      <div className="reading-header">
-        <button onClick={() => setMode('student')} className="back-btn">
-          ← Back to Grade Selection
+    <div className="app-container">
+      <div className="error-message">
+        <h2>Authentication Error</h2>
+        <p>Session expired or invalid. Please log in again.</p>
+        <button className="auth-button" onClick={handleLogout}>
+          Go to Login
         </button>
-        <h1>🎓 {selectedGrade} Learning</h1>
       </div>
-      <ReadingEngine selectedGrade={selectedGrade} />
     </div>
   );
 }
