@@ -11,13 +11,12 @@ const submissionRoutes = require('./middleware/submissionRoutes');
 const adminRoutes = require('./middleware/adminRoutes');
 
 const app = express();
-
-// Middleware
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['Content-Length']
 }));
 
 app.use(express.json());
@@ -49,7 +48,6 @@ async function connectDB() {
         process.exit(1);
     }
 }
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/content', contentRoutes);
@@ -64,6 +62,7 @@ app.get('/', (req, res) => {
         database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
+        cors: 'enabled for all origins',
         endpoints: {
             auth: '/api/auth',
             content: '/api/content',
@@ -86,70 +85,13 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Database info endpoint
-app.get('/api/db-info', async (req, res) => {
-    try {
-        const db = mongoose.connection.db;
-        const collections = await db.listCollections().toArray();
-        const collectionNames = collections.map(col => col.name);
-        
-        // Get counts for each collection
-        const counts = {};
-        for (const collection of collections) {
-            try {
-                const count = await db.collection(collection.name).countDocuments();
-                counts[collection.name] = count;
-            } catch (err) {
-                counts[collection.name] = 'error';
-            }
-        }
-        
-        res.json({
-            database: mongoose.connection.name,
-            host: mongoose.connection.host,
-            port: mongoose.connection.port,
-            collections: collectionNames,
-            counts: counts,
-            collectionCount: collections.length,
-            status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Test endpoints
-app.get('/api/test/login', async (req, res) => {
-    res.json({
-        message: 'Login test endpoint',
-        method: 'POST',
-        url: '/api/auth/login',
-        required_fields: ['email', 'password']
-    });
-});
-
-app.get('/api/test/register', async (req, res) => {
-    res.json({
-        message: 'Register test endpoint',
-        method: 'POST',
-        url: '/api/auth/register',
-        required_fields: ['name', 'email', 'password'],
-        optional_fields: ['grade', 'role']
-    });
-});
-
-// 404 handler - MUST BE THE LAST ROUTE (FIXED: using app.all instead of app.use with '*')
-// 404 handler - MUST BE THE LAST ROUTE
-app.use((req, res, next) => {
-    if (req.path === '/') {
-        return next(); // Skip for root path
-    }
+// 404 handler
+app.use((req, res) => {
     res.status(404).json({
         error: 'Endpoint not found',
         requested_url: req.originalUrl,
+        method: req.method,
         available_endpoints: {
-            root: '/',
-            health: '/health',
             auth: {
                 login: 'POST /api/auth/login',
                 register: 'POST /api/auth/register',
@@ -193,6 +135,8 @@ async function startServer() {
     // Check for JWT_SECRET
     if (!process.env.JWT_SECRET) {
         console.error('❌ FATAL ERROR: JWT_SECRET is not defined in .env file');
+        console.log('\nCreate a .env file with:');
+        console.log('JWT_SECRET=your_super_secret_jwt_key_change_this');
         process.exit(1);
     }
 
@@ -202,21 +146,13 @@ async function startServer() {
     app.listen(PORT, () => {
         console.log(`\n🚀 Server running on port ${PORT}`);
         console.log(`🌐 URL: http://localhost:${PORT}`);
+        console.log(`✅ CORS: Enabled for ALL origins (development mode)`);
         console.log(`📊 Health: http://localhost:${PORT}/health`);
         console.log(`🔑 Auth API: http://localhost:${PORT}/api/auth`);
-        console.log(`📚 Content API: http://localhost:${PORT}/api/content`);
-        console.log(`📝 Submissions API: http://localhost:${PORT}/api/submissions`);
-        console.log(`👨‍🏫 Admin API: http://localhost:${PORT}/api/admin`);
-        
-        console.log('\n📋 Quick Test Commands:');
-        console.log('=====================');
-        console.log(`Test server: curl http://localhost:${PORT}/`);
-        console.log(`Register: curl -X POST http://localhost:${PORT}/api/auth/register \\`);
+        console.log(`\n📋 Test with curl:`);
+        console.log('curl -X POST http://localhost:4000/api/auth/register \\');
         console.log('  -H "Content-Type: application/json" \\');
         console.log('  -d \'{"name":"Test","email":"test@test.com","password":"test123","grade":"Grade 4"}\'');
-        console.log(`Login: curl -X POST http://localhost:${PORT}/api/auth/login \\`);
-        console.log('  -H "Content-Type: application/json" \\');
-        console.log('  -d \'{"email":"test@test.com","password":"test123"}\'');
     });
 }
 

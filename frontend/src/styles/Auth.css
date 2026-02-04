@@ -94,3 +94,74 @@
   padding: 0;
   font-size: 1em;
 }
+/* Auth.css - Add these styles */
+
+.login-options {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.role-btn {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.role-btn:hover {
+  border-color: #3b82f6;
+  background: #f0f9ff;
+}
+
+.role-btn.active {
+  border-color: #3b82f6;
+  background: #3b82f6;
+  color: white;
+}
+
+.role-info {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #3b82f6;
+}
+
+.admin-note {
+  margin: 0;
+  color: #374151;
+  font-size: 14px;
+}
+
+.student-note {
+  margin: 0;
+  color: #374151;
+  font-size: 14px;
+}
+
+.register-subtitle {
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.terms-note {
+  background: #f0f9ff;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 3px solid #3b82f6;
+}
+
+.terms-note p {
+  margin: 0;
+  font-size: 13px;
+  color: #1e40af;
+}

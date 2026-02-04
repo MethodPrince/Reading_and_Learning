@@ -10,6 +10,7 @@ const router = express.Router();
  * REGISTER
  * name, email, password, role (optional)
  */
+// middleware/authRoutes.js - Update registration route
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -31,21 +32,24 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    // Force student role for registration
+    // Admin users should be created manually in database
+    const userRole = 'student';
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user - always as student
     const user = new User({
-    name,
-    email,
-    password: hashedPassword,
-    role: role || 'student',
-    grade: req.body.grade || 'Grade 4', // Add this
-    maxAttempts: req.body.role === 'admin' ? 999 : 3, // Add this
-    attemptsUsed: 0 // Add this
-});
+      name,
+      email,
+      password: hashedPassword,
+      role: userRole,
+      grade: req.body.grade || 'Grade 4',
+      maxAttempts: 3,
+      attemptsUsed: 0
+    });
 
-    // This will create the database and collection automatically!
     await user.save();
 
     // Create token
@@ -59,7 +63,7 @@ router.post("/register", async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    console.log(`✅ New user registered: ${email}`);
+    console.log(`✅ New student registered: ${email}`);
     
     res.status(201).json({ 
       success: true,
@@ -69,13 +73,15 @@ router.post("/register", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        grade: user.grade,
+        maxAttempts: user.maxAttempts,
+        attemptsUsed: user.attemptsUsed
       }
     });
   } catch (err) {
     console.error("Registration error:", err);
     
-    // Handle duplicate key error
     if (err.code === 11000) {
       return res.status(400).json({ 
         success: false,
@@ -146,7 +152,10 @@ router.post("/login", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        grade: user.grade,
+        maxAttempts: user.maxAttempts,
+        attemptsUsed: user.attemptsUsed
       }
     });
   } catch (err) {

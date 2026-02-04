@@ -31,7 +31,6 @@ export default function StudentRegister({ onRegister }: { onRegister: () => void
     setLoading(true);
 
     try {
-      // FIXED: Changed from /api/register to /api/auth/register
       const res = await fetch("http://localhost:4000/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -39,16 +38,17 @@ export default function StudentRegister({ onRegister }: { onRegister: () => void
           name: form.name,
           email: form.email,
           password: form.password,
-          grade: form.grade
+          grade: form.grade,
+          role: "student" // Force student role on registration
         }),
       });
 
       const data = await res.json();
       
-      console.log("Registration response:", data); // For debugging
+      console.log("Registration response:", data);
       
       if (res.ok && data.success) {
-        alert("Registration successful! Please login.");
+        alert("🎉 Registration successful! Please login with your credentials.");
         onRegister();
       } else {
         setError(data.message || "Registration failed");
@@ -64,6 +64,7 @@ export default function StudentRegister({ onRegister }: { onRegister: () => void
   return (
     <div className="auth-container">
       <h2 className="login-title">Student Registration</h2>
+      <p className="register-subtitle">Register as a student to access learning materials and quizzes</p>
       
       {error && <div className="error">{error}</div>}
 
@@ -146,8 +147,13 @@ export default function StudentRegister({ onRegister }: { onRegister: () => void
           />
         </div>
 
+        <div className="terms-note">
+          <p>📝 <strong>Note:</strong> This registration is for students only. 
+          Admin accounts are created by system administrators.</p>
+        </div>
+
         <button type="submit" className="auth-button" disabled={loading}>
-          {loading ? "Registering..." : "Create Account"}
+          {loading ? "Registering..." : "Register as Student"}
         </button>
       </form>
 

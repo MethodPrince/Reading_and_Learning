@@ -15,6 +15,11 @@ const ContentSchema = new mongoose.Schema({
         required: true
     },
     description: String,
+    contentType: {
+        type: String,
+        enum: ['quiz', 'notes'],
+        default: 'quiz'
+    },
     questions: [{
         question: String,
         options: [String],
